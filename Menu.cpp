@@ -36,6 +36,7 @@ void Menu::showOptions() {
                     break;
                 case 2:
                     cout << "Making payment...\n";
+                    savings.payment();
                     break;
                 case 3:
                     cout << "Deleting account...\n";

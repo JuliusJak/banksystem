@@ -68,34 +68,30 @@ Savings* Savings::createSavingsAccount(const LoginSystem& loginSystem) {
     return new Savings(const_cast<LoginSystem&>(loginSystem));
 }
 
-void Savings::addMoney(double amount, const string& savingsAccountName) {
-    string currentUsername = loginSystem.getCurrentUsername();
-    string userDirectory = "users/userList/User_" + currentUsername;
-    string filePath = userDirectory + "/" + savingsAccountName + ".csv";
-
-    ifstream readFile(filePath);
-    if (!readFile.is_open()) {
-        cerr << "Error updating savings account.\n";
+void Savings::addMoney(double amount, const string& recipientFilePath) {
+    ifstream recipientFile(recipientFilePath);
+    if (!recipientFile.is_open()) {
+        cerr << "Error updating recipient's savings account.\n";
         return;
     }
 
     double currentBalance = 0.0;
-    if (readFile >> currentBalance) {
+    if (recipientFile >> currentBalance) {
         currentBalance += amount;
 
-        ofstream writeFile(filePath);
-        if (writeFile.is_open()) {
-            writeFile << fixed << setprecision(6) << currentBalance << "\n";
-            cout << "Added " << amount << " to the savings account. New balance: " << currentBalance << "\n";
+        ofstream recipientWriteFile(recipientFilePath);
+        if (recipientWriteFile.is_open()) {
+            recipientWriteFile << fixed << setprecision(6) << currentBalance << "\n";
+            cout << "Added " << amount << " to the recipient's savings account. New balance: " << currentBalance << "\n";
         } else {
-            cerr << "Error updating savings account.\n";
+            cerr << "Error updating recipient's savings account.\n";
         }
-        writeFile.close();
+        recipientWriteFile.close();
     } else {
-        cerr << "Error updating savings account.\n";
+        cerr << "Error updating recipient's savings account.\n";
     }
 
-    readFile.close();
+    recipientFile.close();
 }
 
 bool Savings::removeMoney(double amount, const string& savingsAccountName) {
@@ -135,6 +131,9 @@ bool Savings::removeMoney(double amount, const string& savingsAccountName) {
 }
 
 void Savings::transferMoney() {
+    string currentUsername = loginSystem.getCurrentUsername();
+    string userDirectory = "users/userList/User_" + currentUsername;
+
     string fromAccount, toAccount;
     double amountToBeTransferred;
 
@@ -142,8 +141,9 @@ void Savings::transferMoney() {
     cout << "Give the money to: "; cin >> toAccount;
     cout << "Enter amount to be transferred: "; cin >> amountToBeTransferred;
 
+    string recipientFilePath = userDirectory + "/" + toAccount + ".csv";
     if (removeMoney(amountToBeTransferred, fromAccount)) {
-        addMoney(amountToBeTransferred, toAccount);
+        addMoney(amountToBeTransferred, recipientFilePath);
     } else {
         cout << "Transfer canceled.\n";
     }
@@ -175,5 +175,52 @@ void Savings::deleteSavingsAccount() {
         }
     } else {
         cerr << "Savings account '" << savingsAccountName << "' not found.\n";
+    }
+}
+
+void Savings::payment() {
+    string currentUsername = loginSystem.getCurrentUsername();
+    string currentUserDirectory = "users/userList/User_" + currentUsername;
+
+    string fromAccount, toUsername, toAccount;
+    double amountToBePaid;
+
+    cout << "Enter the name of the account to deduct from: ";
+    cin >> fromAccount;
+
+    // Ensure that the source account exists
+    string sourceFilePath = currentUserDirectory + "/" + fromAccount + ".csv";
+    if (!fs::exists(sourceFilePath)) {
+        cerr << "Source account '" << fromAccount << "' not found.\n";
+        return;
+    }
+
+    cout << "Enter the username of the recipient: ";
+    cin >> toUsername;
+
+    string toUserDirectory = "users/userList/User_" + toUsername;
+
+    // Ensure that the recipient account exists
+    cout << "Enter the name of the account to transfer to: ";
+    cin >> toAccount;
+
+    string recipientFilePath = toUserDirectory + "/" + toAccount + ".csv";
+    if (!fs::exists(recipientFilePath)) {
+        cerr << "Recipient account '" << toAccount << "' not found.\n";
+        return;
+    }
+
+    cout << "Enter amount to be paid: ";
+    cin >> amountToBePaid;
+
+    // Use removeMoney on the source account
+    if (removeMoney(amountToBePaid, fromAccount)) {
+        // Use addMoney on the recipient's account
+    Savings recipientSavings(loginSystem);  // Use the existing user's loginSystem
+    recipientSavings.recipientUserDirectory = toUserDirectory;  // Set recipient's directory
+    recipientSavings.addMoney(amountToBePaid, recipientFilePath);
+    cout << "Payment of " << amountToBePaid << " made successfully to account '" << toAccount << "' of user '" << toUsername << "'.\n";
+    } else {
+        cout << "Payment canceled.\n";
     }
 }
